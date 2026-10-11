@@ -15,6 +15,7 @@ __all__ = [
     "Candidate",
     "FactStore",
     "MongoFactStore",
+    "RedisFactStore",
     "open_store",
     "Curator",
     "CuratorResult",
@@ -39,12 +40,22 @@ def open_store(config):
     if uri:
         from .mongo_store import MongoFactStore  # imported lazily (needs pymongo)
         return MongoFactStore(uri=uri, db_name=getattr(config, "mongodb_db", None))
+
+    from .redis_store import redis_credentials
+    if redis_credentials():
+        from .redis_store import RedisFactStore  # Vercel-friendly REST Redis
+        return RedisFactStore()
+
     return FactStore(config.db_path)
 
 
 def __getattr__(name):
-    # Expose MongoFactStore without importing pymongo unless it is asked for.
+    # Expose the optional remote stores without importing their drivers
+    # unless they are actually asked for.
     if name == "MongoFactStore":
         from .mongo_store import MongoFactStore
         return MongoFactStore
+    if name == "RedisFactStore":
+        from .redis_store import RedisFactStore
+        return RedisFactStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

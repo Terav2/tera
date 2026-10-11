@@ -76,12 +76,12 @@ two things in application code instead of the database:
 
 No SQL anywhere.
 
-There are **two interchangeable backends**, chosen automatically: the embedded
-Mongita store (the default — zero setup) and a **MongoDB** store, used the
-moment a `TERA_MONGODB_URI` connection string is present. The MongoDB backend
-exists for stateless hosts such as Vercel, where there is no local disk to keep
-the base on. Both expose the identical interface, so nothing else in Tera
-changes.
+There are **three interchangeable backends**, chosen automatically: the
+embedded Mongita store (the default — zero setup), a **Redis** store used when
+the Redis REST credentials are present, and a **MongoDB** store used when
+`TERA_MONGODB_URI` is set. The remote backends exist for stateless hosts such
+as Vercel, where there is no local disk to keep the base on. All three expose
+the identical interface, so nothing else in Tera changes.
 
 ## Install & run
 
@@ -157,13 +157,14 @@ rather than failing — the knowledge base keeps working either way.
 The repo is set up to deploy as a normal Python web service. `Procfile`,
 `render.yaml` and `Dockerfile` are included.
 
-**Vercel** (needs an external database): deploys as a serverless function via
+**Vercel** (needs external storage): deploys as a serverless function via
 `api/index.py` + `vercel.json`. Vercel's filesystem is ephemeral, so the
-knowledge base must live in MongoDB. Create a free **MongoDB Atlas** cluster,
-copy its connection string, then in Vercel *Add New → Project*, import this
-repo, and add an Environment Variable `TERA_MONGODB_URI` = your connection
-string. Tera picks up Atlas automatically. (Without that variable, Tera still
-runs on Vercel but forgets everything between visits.)
+knowledge base needs somewhere external to live. The easiest is a **Redis
+add-on added from the Vercel dashboard** — *Storage → Create Database → Upstash
+Redis*. It is one click and injects the credentials automatically; Tera detects
+them and persists there. (Alternatively, set `TERA_MONGODB_URI` to a MongoDB
+Atlas connection string.) Without either, Tera still runs on Vercel but forgets
+everything between visits.
 
 **Render** (simplest): push to GitHub, then *New + → Blueprint*, pick the repo,
 and Render reads `render.yaml`. That blueprint attaches a 1 GB persistent disk
@@ -226,7 +227,8 @@ tera/
   llm/                 pluggable models: mock (offline), openai, anthropic, ollama
   kb/
     store.py           embedded document store + inverted index
-    mongo_store.py     MongoDB-backed store (for Vercel / stateless hosts)
+    mongo_store.py     MongoDB-backed store (for stateless hosts)
+    redis_store.py     Redis (Upstash REST) store — easiest for Vercel
     curator.py         decides what is worth keeping
     consolidator.py    reinforce / supersede / add
     retriever.py       BM25-style ranking blended with confidence
@@ -240,5 +242,5 @@ tests/                 test_tera.py (core), test_web.py (API + page)
 ```
 
 Run the tests with `pytest -q`, or directly:
-`python tests/test_tera.py`, `python tests/test_web.py` and
-`python tests/test_mongo.py`.
+`python tests/test_tera.py`, `python tests/test_web.py`,
+`python tests/test_mongo.py` and `python tests/test_redis.py`.
