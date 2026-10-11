@@ -18,8 +18,14 @@ class TeraConfig:
     # A document database (Mongita) that runs embedded in-process: no server,
     # no daemon, no setup. `db_path` is a folder the base lives in, or
     # ":memory:" for a throwaway base (handy for tests).
+    # On serverless platforms (Vercel) the filesystem is ephemeral and only
+    # /tmp is writable, so default there — the base won't persist, which is a
+    # limitation of the host, not the app.
     db_path: str = field(
-        default_factory=lambda: os.environ.get("TERA_DB", "tera_knowledge")
+        default_factory=lambda: os.environ.get(
+            "TERA_DB",
+            "/tmp/tera_knowledge" if os.environ.get("VERCEL") else "tera_knowledge",
+        )
     )
 
     # --- LLM (optional) --------------------------------------------------
