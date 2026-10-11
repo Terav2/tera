@@ -44,13 +44,17 @@ class Retriever:
         ]
 
         results = []
+        q_set = set(q_tokens)
         for d in docs:
             dtokens = set(d.get("tokens", []))
+            matched = q_set & dtokens
+            if not matched:
+                continue
             lexical = 0.0
-            for t in set(q_tokens):
-                if t in dtokens:
-                    idf = math.log(1 + (N - df.get(t, 0) + 0.5) / (df.get(t, 0) + 0.5))
-                    lexical += idf
+            for t in matched:
+                idf = math.log(1 + (N - df.get(t, 0) + 0.5) / (df.get(t, 0) + 0.5))
+                lexical += idf
+            coverage = len(matched) / len(q_set)
             conf = float(d.get("confidence", 0.6))
             reinf = min(int(d.get("reinforcements", 0)), 5) / 5.0
             final = lexical + 0.5 * conf + 0.3 * reinf
@@ -58,8 +62,11 @@ class Retriever:
                 "fact": self.store._to_fact(d),
                 "score": round(final, 4),
                 "lexical": round(lexical, 4),
+                "coverage": round(coverage, 3),
             })
 
+        # A fact must cover enough of the question to be a real answer.
+        results = [r for r in results if r["coverage"] >= self.cfg.min_coverage]
         results.sort(key=lambda r: r["score"], reverse=True)
         return results[:top_k]
 
@@ -73,11 +80,13 @@ class Retriever:
         for fact in self.store.all_active(limit=2000):
             content = normalize(fact.content)
             overlap = sum(1 for w in q_words if w in content)
-            if overlap:
+            coverage = overlap / len(q_words)
+            if overlap and coverage >= self.cfg.min_coverage:
                 hits.append({
                     "fact": fact,
                     "score": float(overlap),
                     "lexical": float(overlap),
+                    "coverage": round(coverage, 3),
                 })
         hits.sort(key=lambda r: r["score"], reverse=True)
         return hits[:top_k]

@@ -155,28 +155,38 @@ class Tera:
         if verdict.decision == curator_mod.STORE:
             res = self.learn(text)
             if res.action == "reinforced":
-                msg = "I already knew that — I've noted it again, so I'm now more confident."
+                msg = "Huh, okay — I already knew that. Good to hear it again."
             elif res.action == "superseded":
-                msg = "Thanks — I've updated what I had stored with this newer information."
+                msg = "Ah, okay — I'll go with this instead of what I had before."
             else:
-                msg = "Got it. I've stored that permanently."
+                msg = "Huh, okay — got it. I'll remember that."
             return ChatReply("stored", msg, ingest=res)
 
         if verdict.decision == curator_mod.REJECT_CHITCHAT:
             return ChatReply(
                 "chitchat",
-                "Hi! Tell me a fact and I'll remember it, or ask me something "
-                "and I'll answer from what I've learned.",
+                "Hey! Tell me something and I'll remember it — or ask me anything.",
             )
 
         # commands and everything else
         return ChatReply(
             "refused",
-            "I only keep durable information in my knowledge base — I didn't "
-            "store that. Give me a fact, or ask me a question.",
+            "I remember things rather than do them — tell me something and I'll keep it.",
         )
 
     # ------------------------------------------------------------------ #
+    def seed_if_empty(self, source: str = "seed") -> int:
+        """Load the starter knowledge pack, but only when the base is empty."""
+        if self.store.active_count() > 0:
+            return 0
+        from .kb.seed import SEED_FACTS
+        added = 0
+        for text in SEED_FACTS:
+            res = self.learn(text, source=source)
+            if res.stored and res.action == "added":
+                added += 1
+        return added
+
     def stats(self) -> dict:
         return self.store.stats()
 

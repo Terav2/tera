@@ -23,14 +23,10 @@ class MockLLM(LLM):
         self, question: str, facts: List[str], system: Optional[str] = None
     ) -> str:
         if not facts:
-            return (
-                "I don't have anything in my knowledge base about that yet. "
-                "Tell me about it and I'll remember it permanently."
-            )
+            return "Hmm, I don't know about that yet. Tell me and I'll remember it."
         if len(facts) == 1:
-            return f"From what I've stored: {facts[0]}"
-        body = "\n".join(f"  {i}. {f}" for i, f in enumerate(facts, 1))
-        return f"Here is what I've stored that is relevant:\n{body}"
+            return facts[0]
+        return "\n".join(facts)
 
     def extract(self, text: str) -> List[Dict[str, Optional[str]]]:
         # Offline mode defers entirely to the rule-based curator.

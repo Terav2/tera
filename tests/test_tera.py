@@ -91,7 +91,26 @@ def test_honest_when_unknown():
     tera = new_tera()
     ans = tera.ask("What is the population of Mars?")
     assert ans.facts == []
-    assert "don't have" in ans.text.lower() or "not" in ans.text.lower()
+    assert "don't know" in ans.text.lower()
+    tera.close()
+
+
+def test_weak_match_is_not_an_answer():
+    """One coincidental shared word must not produce a confident answer."""
+    tera = new_tera()
+    tera.learn("Mount Everest is the highest mountain in the world.")
+    assert tera.ask("Who won the 2050 World Cup?").facts == []
+    # ...but a genuine match still works
+    assert tera.ask("Which is the highest mountain in the world?").facts
+    tera.close()
+
+
+def test_seed_pack():
+    tera = new_tera()
+    n = tera.seed_if_empty()
+    assert n >= 30
+    assert tera.seed_if_empty() == 0            # idempotent
+    assert "1969" in tera.ask("When was ISRO founded?").text
     tera.close()
 
 

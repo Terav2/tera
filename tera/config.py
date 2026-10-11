@@ -52,6 +52,10 @@ class TeraConfig:
         default_factory=lambda: os.environ.get("TERA_LLM_MODEL", "")
     )
 
+    # Load the small starter knowledge pack when the base is empty, so Tera
+    # isn't blank on first run.
+    seed_starter_facts: bool = True
+
     # --- Curator (what gets stored) -------------------------------------
     # Store the user's own stated preferences/profile ("I prefer dark mode").
     store_user_preferences: bool = True
@@ -71,6 +75,10 @@ class TeraConfig:
     top_k: int = 5
     # Minimum combined score for a retrieved fact to be shown to the LLM.
     min_score: float = 0.0
+    # Minimum share of the question's words that a stored fact must contain
+    # before it counts as relevant. Stops one coincidental word from producing
+    # a confident but wrong answer.
+    min_coverage: float = 0.6
 
     def resolved_db_path(self) -> str:
         return self.db_path

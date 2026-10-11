@@ -21,6 +21,9 @@ STOPWORDS = {
     "too", "very", "can", "will", "just", "also", "i", "you", "he", "she",
     "we", "they", "them", "his", "her", "their", "our", "your", "my",
     "me", "us", "him",
+    # question words and politeness — low information for matching
+    "what", "who", "whom", "whose", "which", "when", "where", "why", "how",
+    "please", "tell", "know", "kindly", "hey", "hi", "hello", "thanks",
 }
 
 

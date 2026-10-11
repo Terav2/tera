@@ -40,6 +40,12 @@ def create_app(config: TeraConfig | None = None) -> Flask:
     app.config["TERA"] = tera
     # Visible in the Vercel function logs — tells us which store was chosen.
     print(f"[tera] store={type(tera.store).__name__} db={cfg.db_path}", flush=True)
+    try:
+        seeded = tera.seed_if_empty() if cfg.seed_starter_facts else 0
+        if seeded:
+            print(f"[tera] seeded {seeded} starter facts", flush=True)
+    except Exception as exc:  # never let seeding break startup
+        print(f"[tera] seed skipped: {exc}", flush=True)
 
     # ---------------------------------------------------------------- #
     # page
