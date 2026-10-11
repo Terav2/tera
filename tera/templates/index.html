@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tera — knowledge-base chatbot</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --line: #2a2f3a;
+    --text: #e7e9ee; --muted: #9aa3b2; --accent: #6ea8fe; --accent-2: #3d7bfd;
+    --good: #35c28a; --warn: #e0a83a; --bad: #e06a6a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; height: 100vh; overflow: hidden;
+  }
+  /* sidebar */
+  aside {
+    width: 320px; flex: 0 0 320px; background: var(--panel); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  aside header { padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+  .brand { font-size: 20px; font-weight: 700; letter-spacing: .2px; }
+  .brand span { color: var(--accent); }
+  .tagline { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .stats { padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  .stats .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+  .stats .row b { color: var(--text); font-weight: 600; }
+  .stats .row span { color: var(--muted); }
+  .facts-wrap { flex: 1; overflow-y: auto; padding: 14px 20px 20px; }
+  .facts-wrap h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; }
+  .facts-wrap h3 button {
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 6px; font-size: 11px; padding: 3px 8px; cursor: pointer;
+  }
+  .facts-wrap h3 button:hover { color: var(--text); border-color: var(--accent); }
+  .fact {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 11px; margin-bottom: 8px; font-size: 13px;
+  }
+  .fact .meta { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .badge { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); }
+  /* main */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .chat { flex: 1; overflow-y: auto; padding: 26px 22px; }
+  .msg { max-width: 760px; margin: 0 auto 16px; display: flex; gap: 10px; }
+  .msg .bubble {
+    border-radius: 14px; padding: 11px 15px; white-space: pre-wrap; word-wrap: break-word;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .msg.me { flex-direction: row-reverse; }
+  .msg.me .bubble { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+  .msg .who { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .msg.me .who { text-align: right; }
+  .msg .col { max-width: 82%; }
+  .chip { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    margin-top: 8px; border: 1px solid var(--line); color: var(--muted); }
+  .chip.stored { color: var(--good); border-color: rgba(53,194,138,.4); }
+  .chip.answered { color: var(--accent); border-color: rgba(110,168,254,.4); }
+  .chip.refused { color: var(--warn); border-color: rgba(224,168,58,.4); }
+  .chip.ungrounded { color: var(--bad); border-color: rgba(224,106,106,.4); }
+  .sources { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .sources div { padding: 2px 0; }
+  /* composer */
+  form.composer {
+    border-top: 1px solid var(--line); background: var(--panel); padding: 14px 22px;
+    display: flex; gap: 10px;
+  }
+  form.composer input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 10px; padding: 12px 14px; font-size: 15px; outline: none;
+  }
+  form.composer input:focus { border-color: var(--accent); }
+  form.composer button {
+    background: var(--accent-2); color: #fff; border: none; border-radius: 10px;
+    padding: 0 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  form.composer button:disabled { opacity: .5; cursor: default; }
+  .hint { text-align: center; color: var(--muted); font-size: 12px; padding: 0 0 10px; }
+  .empty { max-width: 760px; margin: 40px auto; color: var(--muted); text-align: center; }
+  .empty code { background: var(--panel-2); padding: 2px 6px; border-radius: 5px; color: var(--text); }
+  @media (max-width: 820px) { aside { display: none; } }
+</style>
+</head>
+<body>
+  <aside>
+    <header>
+      <div class="brand">Te<span>ra</span></div>
+      <div class="tagline">Knowledge-base-first assistant</div>
+    </header>
+    <div class="stats" id="stats"></div>
+    <div class="facts-wrap">
+      <h3>Stored knowledge <button id="refresh">refresh</button></h3>
+      <div id="facts"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="chat" id="chat">
+      <div class="empty">
+        <p>Tell Tera a fact and it keeps it permanently — or ask it something and it answers from what it knows.</p>
+        <p><code>ISRO was founded in 1969.</code> &nbsp; then &nbsp; <code>When was ISRO founded?</code></p>
+      </div>
+    </div>
+    <div class="hint" id="hint">Questions are answered, not stored. Statements are stored, not answered.</div>
+    <form class="composer" id="composer" autocomplete="off">
+      <input id="input" placeholder="Tell Tera something, or ask a question…" autofocus />
+      <button id="send" type="submit">Send</button>
+    </form>
+  </main>
+
+<script>
+const chat = document.getElementById('chat');
+const form = document.getElementById('composer');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+
+function clearEmpty() {
+  const e = chat.querySelector('.empty');
+  if (e) e.remove();
+}
+
+function addMessage(who, text, opts = {}) {
+  clearEmpty();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (who === 'you' ? 'me' : '');
+  const col = document.createElement('div');
+  col.className = 'col';
+  const label = document.createElement('div');
+  label.className = 'who';
+  label.textContent = who === 'you' ? 'You' : 'Tera';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  col.appendChild(label);
+  col.appendChild(bubble);
+
+  if (opts.chip) {
+    const chip = document.createElement('span');
+    chip.className = 'chip ' + opts.chipClass;
+    chip.textContent = opts.chip;
+    col.appendChild(chip);
+  }
+  if (opts.sources && opts.sources.length) {
+    const src = document.createElement('div');
+    src.className = 'sources';
+    opts.sources.forEach(s => {
+      const d = document.createElement('div');
+      d.textContent = '• ' + s;
+      src.appendChild(d);
+    });
+    col.appendChild(src);
+  }
+  wrap.appendChild(col);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function renderStats(s) {
+  if (!s) return;
+  const el = document.getElementById('stats');
+  const rows = [
+    ['Active facts', s.active_facts],
+    ['Total ever stored', s.total_facts],
+    ['Vocabulary', s.vocabulary],
+    ['Reinforced', s.reinforced],
+    ['Superseded', s.superseded],
+    ['Rejected (not stored)', s.rejected],
+    ['Questions answered', s.queries],
+  ];
+  el.innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
+async function loadFacts() {
+  try {
+    const r = await fetch('/api/facts?limit=100');
+    const facts = await r.json();
+    const el = document.getElementById('facts');
+    if (!facts.length) { el.innerHTML = '<div class="fact">Nothing stored yet.</div>'; return; }
+    el.innerHTML = facts.map(f => `
+      <div class="fact">
+        ${escapeHtml(f.content)}
+        <div class="meta">
+          <span class="badge">${escapeHtml(f.category)}</span>
+          conf ${f.confidence}${f.reinforcements ? ' · reinforced ' + f.reinforcements + '×' : ''}
+        </div>
+      </div>`).join('');
+  } catch (e) { /* ignore */ }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    renderStats(await r.json());
+  } catch (e) { /* ignore */ }
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  sendBtn.disabled = true;
+  addMessage('you', text);
+
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+    const d = await r.json();
+    if (!r.ok) { addMessage('tera', d.error || 'Something went wrong.'); return; }
+
+    if (d.kind === 'answered') {
+      addMessage('tera', d.answer, {
+        chip: d.grounded ? 'answered from knowledge base' : 'not in knowledge base yet',
+        chipClass: d.grounded ? 'answered' : 'ungrounded',
+        sources: d.grounded ? d.facts : null,
+      });
+    } else if (d.kind === 'stored') {
+      const verb = d.action === 'reinforced' ? 'reinforced' :
+                   d.action === 'superseded' ? 'updated (old version kept)' : 'stored';
+      addMessage('tera', d.reply, { chip: verb, chipClass: 'stored' });
+      loadFacts();
+    } else {
+      addMessage('tera', d.reply, { chip: 'not stored', chipClass: 'refused' });
+    }
+    renderStats(d.stats);
+  } catch (err) {
+    addMessage('tera', 'Network error — is the server running?');
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+});
+
+document.getElementById('refresh').addEventListener('click', () => { loadFacts(); loadStats(); });
+
+loadStats();
+loadFacts();
+fetch('/api/health').then(r => r.json()).then(h => {
+  if (h.offline) {
+    document.getElementById('hint').textContent =
+      'Offline mode — Tera answers from its knowledge base with no model attached.';
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>

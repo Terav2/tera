@@ -1,0 +1,8 @@
+# Tera dependencies.
+
+# Embedded MongoDB-style document database — no server, no setup.
+mongita>=1.1.5
+
+# Web layer (front end + REST API).
+flask>=3.0
+gunicorn>=21.2

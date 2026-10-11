@@ -1,0 +1,23 @@
+# Render blueprint — deploy Tera as a hosted web app.
+# Push this repo to GitHub, then in Render: New + > Blueprint > pick the repo.
+services:
+  - type: web
+    name: tera
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # One worker: the knowledge base is an embedded file store, so a single
+    # process owns it. Threads give concurrency for the web requests.
+    startCommand: gunicorn -w 1 -k gthread --threads 4 -b 0.0.0.0:$PORT wsgi:app
+    envVars:
+      - key: TERA_DB
+        value: /var/data/tera_knowledge     # persistent disk below
+      # Optional: attach a real model instead of offline mode.
+      # - key: TERA_LLM
+      #   value: openai
+      # - key: OPENAI_API_KEY
+      #   sync: false
+    disk:
+      name: tera-data
+      mountPath: /var/data
+      sizeGB: 1
