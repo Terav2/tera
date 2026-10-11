@@ -163,9 +163,12 @@ function (bundle the `tera` package, raise the timeout). Vercel's filesystem is
 ephemeral, so the knowledge base needs somewhere external to live. The easiest
 is a **Redis add-on added from the Vercel dashboard** — *Storage → Create
 Database → Upstash Redis*. It is one click and injects the credentials
-automatically; Tera detects them and persists there. (Alternatively, set
-`TERA_MONGODB_URI` to a MongoDB Atlas connection string.) Without either, Tera
-still runs on Vercel but forgets everything between visits.
+automatically; Tera detects them and persists there. Tera accepts either the
+REST variables (`KV_REST_API_URL` / `KV_REST_API_TOKEN`, or the
+`UPSTASH_REDIS_REST_*` equivalents) **or** a plain `REDIS_URL` TCP connection
+string. (Alternatively, set `TERA_MONGODB_URI` to a MongoDB Atlas connection
+string.) Without either, Tera still runs on Vercel but forgets everything
+between visits.
 
 **Render** (simplest): push to GitHub, then *New + → Blueprint*, pick the repo,
 and Render reads `render.yaml`. That blueprint attaches a 1 GB persistent disk

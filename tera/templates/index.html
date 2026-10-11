@@ -294,11 +294,8 @@ async function loadHealth(){
       el.textContent = 'Storage: ' + h.store + ' — your knowledge base is saved permanently.';
     } else {
       el.className = 'storage warn';
-      const seen = (h.redis_env && h.redis_env.length)
-        ? ' Tera can see these variables: ' + h.redis_env.join(', ') + '.'
-        : ' Tera can see no Redis variables at all.';
-      el.textContent = 'Storage: not persistent — Tera will forget between visits.' + seen +
-        ' Add a Redis database from the Vercel Storage tab, then redeploy.';
+      el.textContent = 'Storage: not persistent — Tera will forget between visits. ' +
+        'Add a Redis database from the Vercel Storage tab, then redeploy.';
     }
   }catch(e){ /* ignore */ }
 }

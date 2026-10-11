@@ -66,18 +66,12 @@ def create_app(config: TeraConfig | None = None) -> Flask:
             persistent = not os.environ.get("VERCEL")
         else:
             persistent = True
-        try:
-            from .kb.redis_store import redis_env_names
-            redis_env = redis_env_names()
-        except Exception:
-            redis_env = []
         return jsonify({
             "status": "ok",
             "llm": tera.llm.name,
             "offline": tera.llm.name == "mock",
             "store": friendly,
             "persistent": persistent,
-            "redis_env": redis_env,
         })
 
     @app.get("/api/stats")
