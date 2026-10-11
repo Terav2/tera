@@ -75,19 +75,44 @@ class UpstashTransport:
 
 def redis_credentials() -> Optional[tuple]:
     """Return (url, token) if any recognised pair is configured, else None."""
-    url = (
-        os.environ.get("TERA_REDIS_URL")
-        or os.environ.get("UPSTASH_REDIS_REST_URL")
-        or os.environ.get("KV_REST_API_URL")
-    )
-    token = (
-        os.environ.get("TERA_REDIS_TOKEN")
-        or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
-        or os.environ.get("KV_REST_API_TOKEN")
-    )
-    if url and token:
-        return url, token
+    env = os.environ
+
+    # 1. the known, explicit pairs
+    for url_key, tok_key in (
+        ("TERA_REDIS_URL", "TERA_REDIS_TOKEN"),
+        ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"),
+        ("KV_REST_API_URL", "KV_REST_API_TOKEN"),
+    ):
+        if env.get(url_key) and env.get(tok_key):
+            return env[url_key], env[tok_key]
+
+    # 2. heuristic: any https endpoint that looks like Upstash, plus its token.
+    #    Covers integrations that use a slightly different variable name.
+    for key, val in env.items():
+        ku = key.upper()
+        if not val or not val.startswith("https://"):
+            continue
+        looks_like_upstash = (
+            "upstash" in val.lower() or "UPSTASH" in ku or ("KV" in ku and "REST" in ku)
+        )
+        if not looks_like_upstash:
+            continue
+        if ku.endswith("_URL"):
+            base = ku[:-3]  # strip "URL" -> e.g. "KV_REST_API_"
+            token = env.get(base + "TOKEN") or env.get(base + "_TOKEN")
+            if token:
+                return val, token
     return None
+
+
+def redis_env_names() -> list:
+    """Names (never values) of env vars that look Redis/KV related — diagnostics."""
+    names = []
+    for k in os.environ:
+        ku = k.upper()
+        if ku.startswith("KV_") or "REDIS" in ku or "UPSTASH" in ku:
+            names.append(k)
+    return sorted(names)
 
 
 class RedisFactStore:

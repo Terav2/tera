@@ -38,6 +38,8 @@ def create_app(config: TeraConfig | None = None) -> Flask:
         cfg.db_path = os.environ["TERA_DB"]
     tera = Tera(config=cfg)
     app.config["TERA"] = tera
+    # Visible in the Vercel function logs — tells us which store was chosen.
+    print(f"[tera] store={type(tera.store).__name__} db={cfg.db_path}", flush=True)
 
     # ---------------------------------------------------------------- #
     # page
@@ -62,12 +64,18 @@ def create_app(config: TeraConfig | None = None) -> Flask:
             persistent = not os.environ.get("VERCEL")
         else:
             persistent = True
+        try:
+            from .kb.redis_store import redis_env_names
+            redis_env = redis_env_names()
+        except Exception:
+            redis_env = []
         return jsonify({
             "status": "ok",
             "llm": tera.llm.name,
             "offline": tera.llm.name == "mock",
             "store": friendly,
             "persistent": persistent,
+            "redis_env": redis_env,
         })
 
     @app.get("/api/stats")
