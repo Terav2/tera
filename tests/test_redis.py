@@ -138,6 +138,38 @@ def test_find_active_by_sp():
     s.close()
 
 
+def test_redis_spec_detection():
+    import os
+    from tera.kb.redis_store import redis_spec
+    saved = dict(os.environ)
+    try:
+        for k in list(os.environ):
+            ku = k.upper()
+            if "REDIS" in ku or ku.startswith("KV_") or "UPSTASH" in ku:
+                del os.environ[k]
+        # TCP form (what Vercel's Redis integration injects)
+        os.environ["REDIS_URL"] = "rediss://default:abc@example.upstash.io:6379"
+        spec = redis_spec()
+        assert spec is not None and spec[0] == "tcp"
+        # REST form wins when present
+        os.environ["KV_REST_API_URL"] = "https://example.upstash.io"
+        os.environ["KV_REST_API_TOKEN"] = "tok"
+        spec = redis_spec()
+        assert spec is not None and spec[0] == "rest"
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+
+
+def test_tcp_store_full_pipeline():
+    # The store logic is transport-agnostic, so drive it with the in-memory fake
+    # exactly as a TCP connection would behave.
+    tera = tera_with_redis()
+    assert tera.learn("Mumbai is the capital of Maharashtra.").stored
+    assert "Maharashtra" in tera.ask("What is the capital of Maharashtra?").text
+    tera.close()
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

@@ -73,35 +73,69 @@ class UpstashTransport:
         return out.get("result") if isinstance(out, dict) else out
 
 
-def redis_credentials() -> Optional[tuple]:
-    """Return (url, token) if any recognised pair is configured, else None."""
+_CLIENTS = {}
+
+
+def _tcp_client(url: str):
+    """A cached redis-py client — reused across warm serverless invocations."""
+    if url not in _CLIENTS:
+        import redis  # from the `redis` package
+        _CLIENTS[url] = redis.from_url(
+            url,
+            decode_responses=True,
+            socket_timeout=10,
+            socket_connect_timeout=10,
+            health_check_interval=30,
+        )
+    return _CLIENTS[url]
+
+
+class RedisTcpTransport:
+    """Talks to Redis over TCP using redis-py (for a redis:// or rediss:// URL)."""
+
+    def __init__(self, url: str):
+        self._client = _tcp_client(url)
+
+    def __call__(self, *args):
+        return self._client.execute_command(*args)
+
+
+def redis_spec():
+    """Work out how to reach Redis.
+
+    Returns one of:
+        ("rest", url, token)  -- HTTP REST endpoint (ideal for serverless)
+        ("tcp",  url)         -- a redis:// or rediss:// URL (needs redis-py)
+        None                  -- nothing configured
+    """
     env = os.environ
 
-    # 1. the known, explicit pairs
+    # 1. the known REST pairs (Vercel KV / Upstash integration)
     for url_key, tok_key in (
         ("TERA_REDIS_URL", "TERA_REDIS_TOKEN"),
         ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"),
         ("KV_REST_API_URL", "KV_REST_API_TOKEN"),
     ):
         if env.get(url_key) and env.get(tok_key):
-            return env[url_key], env[tok_key]
+            return ("rest", env[url_key], env[tok_key])
 
     # 2. heuristic: any https endpoint that looks like Upstash, plus its token.
-    #    Covers integrations that use a slightly different variable name.
     for key, val in env.items():
         ku = key.upper()
         if not val or not val.startswith("https://"):
             continue
-        looks_like_upstash = (
-            "upstash" in val.lower() or "UPSTASH" in ku or ("KV" in ku and "REST" in ku)
-        )
-        if not looks_like_upstash:
-            continue
-        if ku.endswith("_URL"):
-            base = ku[:-3]  # strip "URL" -> e.g. "KV_REST_API_"
-            token = env.get(base + "TOKEN") or env.get(base + "_TOKEN")
-            if token:
-                return val, token
+        if "upstash" in val.lower() or "UPSTASH" in ku or ("KV" in ku and "REST" in ku):
+            if ku.endswith("_URL"):
+                base = ku[:-3]  # strip "URL"
+                token = env.get(base + "TOKEN") or env.get(base + "_TOKEN")
+                if token:
+                    return ("rest", val, token)
+
+    # 3. a plain TCP connection string — what Vercel's Redis integration gives.
+    for key in ("TERA_REDIS_TCP_URL", "REDIS_URL", "KV_URL"):
+        val = env.get(key)
+        if val and val.startswith(("redis://", "rediss://")):
+            return ("tcp", val)
     return None
 
 
@@ -116,14 +150,27 @@ def redis_env_names() -> list:
 
 
 class RedisFactStore:
-    def __init__(self, transport: Optional[Callable] = None, url: str = None, token: str = None):
+    def __init__(self, transport: Optional[Callable] = None, url: str = None,
+                 token: str = None, tcp_url: str = None):
+        self.mode = "rest"
         if transport is not None:
             self._cmd = transport
+            return
+        if tcp_url:
+            self.mode = "tcp"
+            self._cmd = RedisTcpTransport(tcp_url)
+            return
+        if url and token:
+            self._cmd = UpstashTransport(url, token)
+            return
+        spec = redis_spec()
+        if not spec:
+            raise ValueError("RedisFactStore needs a REST url+token or a REDIS_URL")
+        if spec[0] == "rest":
+            self._cmd = UpstashTransport(spec[1], spec[2])
         else:
-            creds = (url, token) if (url and token) else redis_credentials()
-            if not creds:
-                raise ValueError("RedisFactStore needs a REST url + token")
-            self._cmd = UpstashTransport(creds[0], creds[1])
+            self.mode = "tcp"
+            self._cmd = RedisTcpTransport(spec[1])
 
     # ------------------------------------------------------------------ #
     # small helpers

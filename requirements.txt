@@ -4,9 +4,12 @@
 # Used by default (local file store).
 mongita>=1.1.5
 
-# MongoDB driver — used only when TERA_MONGODB_URI is set (e.g. on Vercel
-# with a free MongoDB Atlas cluster).
+# MongoDB driver — used only when TERA_MONGODB_URI is set.
 pymongo>=4.6
+
+# Redis client — used only when a Redis connection string is configured
+# (e.g. REDIS_URL or KV_REST_API_URL on Vercel).
+redis>=5.0
 
 # Web layer (front end + REST API).
 flask>=3.0

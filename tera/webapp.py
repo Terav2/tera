@@ -59,6 +59,8 @@ def create_app(config: TeraConfig | None = None) -> Flask:
             "MongoFactStore": "MongoDB",
             "RedisFactStore": "Redis",
         }.get(store_name, store_name)
+        if store_name == "RedisFactStore":
+            friendly = "Redis (" + getattr(tera.store, "mode", "rest") + ")"
         # A local file persists on a normal host but not on a serverless one.
         if store_name == "FactStore":
             persistent = not os.environ.get("VERCEL")

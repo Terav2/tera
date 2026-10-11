@@ -41,9 +41,9 @@ def open_store(config):
         from .mongo_store import MongoFactStore  # imported lazily (needs pymongo)
         return MongoFactStore(uri=uri, db_name=getattr(config, "mongodb_db", None))
 
-    from .redis_store import redis_credentials
-    if redis_credentials():
-        from .redis_store import RedisFactStore  # Vercel-friendly REST Redis
+    from .redis_store import redis_spec
+    if redis_spec():
+        from .redis_store import RedisFactStore  # REST or TCP Redis
         return RedisFactStore()
 
     return FactStore(config.db_path)
