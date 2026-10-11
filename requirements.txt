@@ -1,7 +1,12 @@
 # Tera dependencies.
 
 # Embedded MongoDB-style document database — no server, no setup.
+# Used by default (local file store).
 mongita>=1.1.5
+
+# MongoDB driver — used only when TERA_MONGODB_URI is set (e.g. on Vercel
+# with a free MongoDB Atlas cluster).
+pymongo>=4.6
 
 # Web layer (front end + REST API).
 flask>=3.0

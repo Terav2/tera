@@ -28,6 +28,18 @@ class TeraConfig:
         )
     )
 
+    # --- MongoDB (optional, for stateless hosts like Vercel) -------------
+    # If set, Tera stores the knowledge base in MongoDB instead of the local
+    # embedded file store. Use a free MongoDB Atlas cluster.
+    mongodb_uri: str = field(
+        default_factory=lambda: os.environ.get(
+            "TERA_MONGODB_URI", os.environ.get("MONGODB_URI", "")
+        )
+    )
+    mongodb_db: str = field(
+        default_factory=lambda: os.environ.get("TERA_MONGODB_DB", "tera")
+    )
+
     # --- LLM (optional) --------------------------------------------------
     # "mock"     -> offline, rule-based, needs nothing (default).
     # "openai"   -> needs OPENAI_API_KEY.

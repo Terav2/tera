@@ -76,6 +76,13 @@ two things in application code instead of the database:
 
 No SQL anywhere.
 
+There are **two interchangeable backends**, chosen automatically: the embedded
+Mongita store (the default — zero setup) and a **MongoDB** store, used the
+moment a `TERA_MONGODB_URI` connection string is present. The MongoDB backend
+exists for stateless hosts such as Vercel, where there is no local disk to keep
+the base on. Both expose the identical interface, so nothing else in Tera
+changes.
+
 ## Install & run
 
 ```bash
@@ -150,6 +157,14 @@ rather than failing — the knowledge base keeps working either way.
 The repo is set up to deploy as a normal Python web service. `Procfile`,
 `render.yaml` and `Dockerfile` are included.
 
+**Vercel** (needs an external database): deploys as a serverless function via
+`api/index.py` + `vercel.json`. Vercel's filesystem is ephemeral, so the
+knowledge base must live in MongoDB. Create a free **MongoDB Atlas** cluster,
+copy its connection string, then in Vercel *Add New → Project*, import this
+repo, and add an Environment Variable `TERA_MONGODB_URI` = your connection
+string. Tera picks up Atlas automatically. (Without that variable, Tera still
+runs on Vercel but forgets everything between visits.)
+
 **Render** (simplest): push to GitHub, then *New + → Blueprint*, pick the repo,
 and Render reads `render.yaml`. That blueprint attaches a 1 GB persistent disk
 at `/var/data` and points `TERA_DB` there, so the knowledge base survives
@@ -165,9 +180,9 @@ want the base to persist.
 gunicorn -w 1 -k gthread --threads 4 -b 0.0.0.0:$PORT wsgi:app
 ```
 
-> One worker is intentional: the knowledge base is an embedded file store, so a
-> single process owns it (threads handle concurrency). If you scale to multiple
-> workers or instances, put a real shared database behind `FactStore` first.
+> On the embedded store, run a **single** worker — one process owns the file.
+> With `TERA_MONGODB_URI` set the base is shared, so you can scale workers and
+> instances freely.
 
 ## What gets stored, and what doesn't
 
@@ -211,15 +226,19 @@ tera/
   llm/                 pluggable models: mock (offline), openai, anthropic, ollama
   kb/
     store.py           embedded document store + inverted index
+    mongo_store.py     MongoDB-backed store (for Vercel / stateless hosts)
     curator.py         decides what is worth keeping
     consolidator.py    reinforce / supersede / add
     retriever.py       BM25-style ranking blended with confidence
     text.py            normalise, hash, tokenise
-wsgi.py                production entry point
+wsgi.py                production entry point (gunicorn / Render / Railway)
+api/index.py           Vercel serverless entry point
+vercel.json            Vercel config
 Procfile, render.yaml, Dockerfile   deployment
 examples/demo.py       offline end-to-end demo
 tests/                 test_tera.py (core), test_web.py (API + page)
 ```
 
 Run the tests with `pytest -q`, or directly:
-`python tests/test_tera.py` and `python tests/test_web.py`.
+`python tests/test_tera.py`, `python tests/test_web.py` and
+`python tests/test_mongo.py`.

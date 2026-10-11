@@ -20,7 +20,7 @@ from typing import List, Optional
 
 from .config import TeraConfig
 from .llm import build_llm
-from .kb import Candidate, Curator, Retriever, Consolidator, FactStore
+from .kb import Candidate, Curator, Retriever, Consolidator, open_store
 from .kb import curator as curator_mod
 
 
@@ -61,7 +61,7 @@ class ChatReply:
 class Tera:
     def __init__(self, config: Optional[TeraConfig] = None, llm=None, store=None):
         self.config = config or TeraConfig()
-        self.store = store or FactStore(self.config.db_path)
+        self.store = store or open_store(self.config)
         self.llm = llm or build_llm(self.config.llm_backend, self.config.llm_model or None)
         self.curator = Curator(self.config)
         self.retriever = Retriever(self.store, self.config)

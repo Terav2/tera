@@ -1,5 +1,9 @@
 """The knowledge-base layer: store, curator, retriever, consolidator."""
 
+from __future__ import annotations
+
+import os
+
 from .models import Fact, Candidate
 from .store import FactStore
 from .curator import Curator, CuratorResult
@@ -10,8 +14,37 @@ __all__ = [
     "Fact",
     "Candidate",
     "FactStore",
+    "MongoFactStore",
+    "open_store",
     "Curator",
     "CuratorResult",
     "Retriever",
     "Consolidator",
 ]
+
+
+def open_store(config):
+    """Return the right store for the environment.
+
+    If a MongoDB connection string is configured, use MongoDB (persists on
+    stateless hosts such as Vercel). Otherwise use the embedded document store,
+    which needs no setup at all.
+    """
+    uri = (
+        getattr(config, "mongodb_uri", "")
+        or os.environ.get("TERA_MONGODB_URI")
+        or os.environ.get("MONGODB_URI")
+        or ""
+    )
+    if uri:
+        from .mongo_store import MongoFactStore  # imported lazily (needs pymongo)
+        return MongoFactStore(uri=uri, db_name=getattr(config, "mongodb_db", None))
+    return FactStore(config.db_path)
+
+
+def __getattr__(name):
+    # Expose MongoFactStore without importing pymongo unless it is asked for.
+    if name == "MongoFactStore":
+        from .mongo_store import MongoFactStore
+        return MongoFactStore
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
