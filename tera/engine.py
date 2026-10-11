@@ -15,6 +15,7 @@ Public surface
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -44,10 +45,12 @@ class Answer:
     question: str = ""
     facts: List = field(default_factory=list)
     retrieved: List = field(default_factory=list)
+    web: List = field(default_factory=list)
+    source: str = "none"          # knowledge | web | none
 
     @property
     def grounded(self) -> bool:
-        return bool(self.facts)
+        return bool(self.facts) or bool(self.web)
 
 
 @dataclass
@@ -66,6 +69,17 @@ class Tera:
         self.curator = Curator(self.config)
         self.retriever = Retriever(self.store, self.config)
         self.consolidator = Consolidator(self.store, self.config)
+
+        # Tera's own web index (a crawler + inverted index it built itself).
+        self.web = None
+        if getattr(self.config, "web_search_enabled", True):
+            path = getattr(self.config, "web_index_path", None)
+            if path and os.path.exists(path):
+                try:
+                    from .websearch import WebSearch
+                    self.web = WebSearch(path)
+                except Exception:
+                    self.web = None
 
     # ------------------------------------------------------------------ #
     # learning
@@ -134,13 +148,28 @@ class Tera:
     # ------------------------------------------------------------------ #
     # answering
     # ------------------------------------------------------------------ #
-    def ask(self, question: str, top_k: Optional[int] = None) -> Answer:
+    def ask(self, question: str, top_k: Optional[int] = None, web: bool = True) -> Answer:
+        self.store.meta_inc("queries")
         retrieved = self.retriever.retrieve(question, top_k=top_k)
         facts = [r["fact"] for r in retrieved if r["score"] >= self.config.min_score]
-        fact_texts = [f.content for f in facts]
-        text = self.llm.answer(question, fact_texts)
-        self.store.meta_inc("queries")
-        return Answer(text=text, question=question, facts=facts, retrieved=retrieved)
+
+        if facts:
+            text = self.llm.answer(question, [f.content for f in facts])
+            return Answer(text=text, question=question, facts=facts,
+                          retrieved=retrieved, source="knowledge")
+
+        # Nothing stored — fall back to Tera's own web index, if it has one.
+        if web and self.web is not None:
+            results = self.web.search(question, k=3,
+                                      min_score=self.config.web_min_score)
+            if results:
+                context = [f"{r['title']}: {r['snippet']}" for r in results[:2]]
+                text = self.llm.answer(question, context)
+                return Answer(text=text, question=question, retrieved=retrieved,
+                              web=results, source="web")
+
+        text = self.llm.answer(question, [])
+        return Answer(text=text, question=question, retrieved=retrieved, source="none")
 
     # ------------------------------------------------------------------ #
     # one entry point for free-form chat
@@ -155,23 +184,23 @@ class Tera:
         if verdict.decision == curator_mod.STORE:
             res = self.learn(text)
             if res.action == "reinforced":
-                msg = "Huh, okay — I already knew that. Good to hear it again."
+                msg = "Yes, that's right."
             elif res.action == "superseded":
-                msg = "Ah, okay — I'll go with this instead of what I had before."
+                msg = "Ah, right — I'll go with that."
             else:
-                msg = "Huh, okay — got it. I'll remember that."
+                msg = "Got it."
             return ChatReply("stored", msg, ingest=res)
 
         if verdict.decision == curator_mod.REJECT_CHITCHAT:
             return ChatReply(
                 "chitchat",
-                "Hey! Tell me something and I'll remember it — or ask me anything.",
+                "Hey there! Ask me anything.",
             )
 
         # commands and everything else
         return ChatReply(
             "refused",
-            "I remember things rather than do them — tell me something and I'll keep it.",
+            "Ask me a question and I'll answer it.",
         )
 
     # ------------------------------------------------------------------ #

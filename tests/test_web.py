@@ -11,7 +11,8 @@ from tera.webapp import create_app
 
 def client():
     # seed_starter_facts=False keeps these tests focused on what they add.
-    app = create_app(TeraConfig(db_path=":memory:", seed_starter_facts=False))
+    app = create_app(TeraConfig(db_path=":memory:", seed_starter_facts=False,
+                                web_search_enabled=False))
     app.config["TESTING"] = True
     return app.test_client()
 

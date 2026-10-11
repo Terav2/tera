@@ -152,6 +152,31 @@ export TERA_LLM=ollama      TERA_LLM_MODEL=llama3.1     # local, no key
 If the chosen backend isn't usable, Tera silently falls back to offline mode
 rather than failing — the knowledge base keeps working either way.
 
+## Tera Search — its own web search engine
+
+When a question isn't answered by the knowledge base, Tera can fall back to a
+search engine it **built itself**: a crawler, an inverted index, and a BM25
+ranker. No Google, DuckDuckGo, Bing or any other search API is involved — the
+only network traffic is Tera's own crawler fetching pages.
+
+```bash
+# crawl seed pages into an index
+python -m tera.websearch crawl --seeds https://en.wikipedia.org/wiki/India \
+    --depth 1 --max-pages 30 --out web_index.json
+
+python -m tera.websearch query "when was ISRO founded"
+python -m tera.websearch stats
+```
+
+A starter index (14 Wikipedia pages) ships as `web_index.json`. Tera loads it
+automatically if it's present, and uses it only when the knowledge base has
+nothing to say. Add more seeds to widen its world.
+
+**Honest limit:** a search engine can only answer from what it has crawled.
+This one covers the seeds you give it — it is not the whole web. Crawling is
+also a poor fit for serverless hosts (short timeouts), so build the index
+locally or on a long-running host and ship the file.
+
 ## Deploying
 
 The repo is set up to deploy as a normal Python web service. `Procfile`,
@@ -237,6 +262,13 @@ tera/
     consolidator.py    reinforce / supersede / add
     retriever.py       BM25-style ranking blended with confidence
     text.py            normalise, hash, tokenise
+    seed.py            starter knowledge pack
+  websearch/           Tera Search: crawler + inverted index + BM25 ranker
+    crawler.py         fetches pages and extracts title/text/links
+    index.py           inverted index and scoring
+    engine.py          crawl, search, save/load
+    cli.py             python -m tera.websearch
+web_index.json         the crawled index Tera searches
 wsgi.py                production entry point (gunicorn / Render / Railway / Vercel)
 vercel.json            Vercel config
 Procfile, render.yaml, Dockerfile   deployment

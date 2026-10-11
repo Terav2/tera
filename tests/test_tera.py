@@ -10,7 +10,8 @@ from tera.kb import curator as C
 
 
 def new_tera():
-    return Tera(config=TeraConfig(db_path=":memory:"))
+    # Web search off: these tests are about the knowledge base itself.
+    return Tera(config=TeraConfig(db_path=":memory:", web_search_enabled=False))
 
 
 # --------------------------------------------------------------------------- #
@@ -91,7 +92,7 @@ def test_honest_when_unknown():
     tera = new_tera()
     ans = tera.ask("What is the population of Mars?")
     assert ans.facts == []
-    assert "don't know" in ans.text.lower()
+    assert "not sure" in ans.text.lower()
     tera.close()
 
 

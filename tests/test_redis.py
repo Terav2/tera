@@ -78,7 +78,8 @@ def store():
 
 
 def tera_with_redis():
-    return Tera(config=TeraConfig(db_path=":memory:"), store=store())
+    return Tera(config=TeraConfig(db_path=":memory:", web_search_enabled=False),
+                store=store())
 
 
 def test_add_reinforce_supersede():

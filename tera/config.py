@@ -71,6 +71,16 @@ class TeraConfig:
     # Confidence ceiling.
     max_confidence: float = 0.99
 
+    # --- Web search (Tera's own crawler + index; no third-party API) -----
+    # When a question isn't answered by the knowledge base, Tera can fall back
+    # to its own web index — a crawler and inverted index it built itself.
+    web_search_enabled: bool = True
+    web_index_path: str = field(
+        default_factory=lambda: os.environ.get("TERA_WEB_INDEX", "web_index.json")
+    )
+    # Minimum BM25 score for a crawled page to count as an answer.
+    web_min_score: float = 1.0
+
     # --- Retrieval -------------------------------------------------------
     top_k: int = 5
     # Minimum combined score for a retrieved fact to be shown to the LLM.

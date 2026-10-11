@@ -19,7 +19,8 @@ def store():
 
 
 def tera_with_mongo():
-    return Tera(config=TeraConfig(db_path=":memory:"), store=store())
+    return Tera(config=TeraConfig(db_path=":memory:", web_search_enabled=False),
+                store=store())
 
 
 def test_store_add_reinforce_supersede():

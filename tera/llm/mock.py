@@ -23,7 +23,7 @@ class MockLLM(LLM):
         self, question: str, facts: List[str], system: Optional[str] = None
     ) -> str:
         if not facts:
-            return "Hmm, I don't know about that yet. Tell me and I'll remember it."
+            return "I'm not sure about that one."
         if len(facts) == 1:
             return facts[0]
         return "\n".join(facts)

@@ -78,6 +78,7 @@ def create_app(config: TeraConfig | None = None) -> Flask:
             "offline": tera.llm.name == "mock",
             "store": friendly,
             "persistent": persistent,
+            "web_pages": len(tera.web.index.docs) if getattr(tera, "web", None) else 0,
         })
 
     @app.get("/api/stats")
