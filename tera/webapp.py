@@ -51,10 +51,23 @@ def create_app(config: TeraConfig | None = None) -> Flask:
     # ---------------------------------------------------------------- #
     @app.get("/api/health")
     def health():
+        store_name = type(tera.store).__name__
+        friendly = {
+            "FactStore": "embedded (local file)",
+            "MongoFactStore": "MongoDB",
+            "RedisFactStore": "Redis",
+        }.get(store_name, store_name)
+        # A local file persists on a normal host but not on a serverless one.
+        if store_name == "FactStore":
+            persistent = not os.environ.get("VERCEL")
+        else:
+            persistent = True
         return jsonify({
             "status": "ok",
             "llm": tera.llm.name,
             "offline": tera.llm.name == "mock",
+            "store": friendly,
+            "persistent": persistent,
         })
 
     @app.get("/api/stats")
