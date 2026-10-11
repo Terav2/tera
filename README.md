@@ -157,14 +157,15 @@ rather than failing — the knowledge base keeps working either way.
 The repo is set up to deploy as a normal Python web service. `Procfile`,
 `render.yaml` and `Dockerfile` are included.
 
-**Vercel** (needs external storage): deploys as a serverless function via
-`api/index.py` + `vercel.json`. Vercel's filesystem is ephemeral, so the
-knowledge base needs somewhere external to live. The easiest is a **Redis
-add-on added from the Vercel dashboard** — *Storage → Create Database → Upstash
-Redis*. It is one click and injects the credentials automatically; Tera detects
-them and persists there. (Alternatively, set `TERA_MONGODB_URI` to a MongoDB
-Atlas connection string.) Without either, Tera still runs on Vercel but forgets
-everything between visits.
+**Vercel** (needs external storage): Vercel detects the Flask app from
+`wsgi.py` and routes every request to it; `vercel.json` just configures that
+function (bundle the `tera` package, raise the timeout). Vercel's filesystem is
+ephemeral, so the knowledge base needs somewhere external to live. The easiest
+is a **Redis add-on added from the Vercel dashboard** — *Storage → Create
+Database → Upstash Redis*. It is one click and injects the credentials
+automatically; Tera detects them and persists there. (Alternatively, set
+`TERA_MONGODB_URI` to a MongoDB Atlas connection string.) Without either, Tera
+still runs on Vercel but forgets everything between visits.
 
 **Render** (simplest): push to GitHub, then *New + → Blueprint*, pick the repo,
 and Render reads `render.yaml`. That blueprint attaches a 1 GB persistent disk
@@ -233,8 +234,7 @@ tera/
     consolidator.py    reinforce / supersede / add
     retriever.py       BM25-style ranking blended with confidence
     text.py            normalise, hash, tokenise
-wsgi.py                production entry point (gunicorn / Render / Railway)
-api/index.py           Vercel serverless entry point
+wsgi.py                production entry point (gunicorn / Render / Railway / Vercel)
 vercel.json            Vercel config
 Procfile, render.yaml, Dockerfile   deployment
 examples/demo.py       offline end-to-end demo
